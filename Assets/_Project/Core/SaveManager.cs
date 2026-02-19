@@ -184,12 +184,25 @@ public class SaveManager : MonoBehaviour
                 var sceneLoader = FindObjectOfType<SceneLoader>();
                 if (sceneLoader != null)
                 {
+                    // Синхронизируем LevelManager перед загрузкой сцены
+                    if (LevelManager.Instance != null)
+                    {
+                        LevelManager.Instance.SetLevelIndexFromLevelName(saveData.currentLevel);
+                    }
                     sceneLoader.LoadScene(saveData.currentLevel, () => StartCoroutine(ApplySaveDataAfterSceneLoadDelayed(saveData)));
                     return;
                 }
                 else
                 {
                     Debug.LogError("SaveManager: SceneLoader not found! Cannot load scene.");
+                }
+            }
+            else
+            {
+                // Синхронизируем LevelManager, если мы уже на правильной сцене
+                if (LevelManager.Instance != null)
+                {
+                    LevelManager.Instance.SetLevelIndexFromLevelName(saveData.currentLevel);
                 }
             }
         }
@@ -232,7 +245,30 @@ public class SaveManager : MonoBehaviour
                 }
             }
         }
+        // Скрыть энергоядра, которые уже собраны
+        StartCoroutine(HideCollectedEnergyCoresAfterDelay(saveData));
         StartCoroutine(RestorePuzzlesAfterDelay(saveData));
+    }
+    private System.Collections.IEnumerator HideCollectedEnergyCoresAfterDelay(SaveData saveData)
+    {
+        yield return null;
+        yield return null;
+        if (saveData.collectedEnergyCores != null && saveData.collectedEnergyCores.Count > 0)
+        {
+            var allEnergyCores = FindObjectsOfType<EnergyCore>(true);
+            foreach (var energyCore in allEnergyCores)
+            {
+                if (energyCore != null && saveData.collectedEnergyCores.Contains(energyCore.CoreId))
+                {
+                    energyCore.gameObject.SetActive(false);
+                    var col = energyCore.GetComponent<Collider>();
+                    if (col != null)
+                    {
+                        col.enabled = false;
+                    }
+                }
+            }
+        }
     }
     private System.Collections.IEnumerator RestorePlayerAfterDelay(SaveData saveData)
     {

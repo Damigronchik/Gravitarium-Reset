@@ -167,6 +167,11 @@ public class GameManager : MonoBehaviour
         {
             SaveManager.Instance.DeleteSave();
         }
+        // Сбросить индекс уровня при старте новой игры
+        if (LevelManager.Instance != null)
+        {
+            LevelManager.Instance.ResetLevelIndex();
+        }
         if (SceneLoader.Instance != null)
         {
             EventBus.OnLevelLoaded += OnNewGameLevelLoaded;
