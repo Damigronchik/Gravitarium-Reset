@@ -3,8 +3,10 @@ using System.Collections.Generic;
 public class InventoryManager : MonoBehaviour
 {
     private HashSet<string> collectedKeyCards = new HashSet<string>();
+    private Dictionary<string, GameObject> keyCardPuzzles = new Dictionary<string, GameObject>();
     private HashSet<string> collectedEnergyCores = new HashSet<string>();
     private Dictionary<string, NoteData> collectedNotes = new Dictionary<string, NoteData>();
+    private string lastDisplayedTaskText = "";
     private static InventoryManager instance;
     public static InventoryManager Instance
     {
@@ -35,13 +37,21 @@ public class InventoryManager : MonoBehaviour
             Destroy(gameObject);
         }
     }
-    public void AddKeyCard(string keyCardId)
+    public void AddKeyCard(string keyCardId, GameObject puzzleForThisKey = null)
     {
         if (!string.IsNullOrEmpty(keyCardId))
         {
             collectedKeyCards.Add(keyCardId);
+            if (puzzleForThisKey != null)
+                keyCardPuzzles[keyCardId] = puzzleForThisKey;
             Debug.Log($"Key card {keyCardId} added to inventory");
         }
+    }
+    public GameObject GetPuzzleForKey(string keyCardId)
+    {
+        if (string.IsNullOrEmpty(keyCardId) || !keyCardPuzzles.ContainsKey(keyCardId))
+            return null;
+        return keyCardPuzzles[keyCardId];
     }
     public bool HasKeyCard(string keyCardId)
     {
@@ -54,6 +64,7 @@ public class InventoryManager : MonoBehaviour
         if (!string.IsNullOrEmpty(keyCardId))
         {
             collectedKeyCards.Remove(keyCardId);
+            keyCardPuzzles.Remove(keyCardId);
         }
     }
     public void AddEnergyCore(string coreId)
@@ -88,18 +99,27 @@ public class InventoryManager : MonoBehaviour
     public void ClearInventory()
     {
         collectedKeyCards.Clear();
+        keyCardPuzzles.Clear();
         collectedEnergyCores.Clear();
         collectedNotes.Clear();
+    }
+    public void SetLastDisplayedTaskText(string text)
+    {
+        lastDisplayedTaskText = text ?? "";
+    }
+    public string GetLastDisplayedTaskText()
+    {
+        return lastDisplayedTaskText ?? "";
     }
     public HashSet<string> GetCollectedKeyCards()
     {
         return new HashSet<string>(collectedKeyCards);
     }
-    public void AddNote(string noteId, string noteTitle, string noteText)
+    public void AddNote(string noteId, string noteTitle, string noteText, string noteTask = "")
     {
         if (!string.IsNullOrEmpty(noteId))
         {
-            collectedNotes[noteId] = new NoteData(noteId, noteTitle, noteText);
+            collectedNotes[noteId] = new NoteData(noteId, noteTitle, noteText, noteTask ?? "");
             Debug.Log($"Note {noteId} added to inventory");
         }
     }

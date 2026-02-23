@@ -6,6 +6,7 @@ public class Door : MonoBehaviour
     [SerializeField] private int requiredEnergyCores = 0;
     [SerializeField] private bool requiresKeyCard = true;
     [SerializeField] private string requiredKeyCardId = "";
+    [Tooltip("Если включено: дверь откроется только когда эта головоломка решена (отдельно от головоломки на ключе).")]
     [SerializeField] private bool requiresPuzzle = false;
     [SerializeField] private GameObject requiredPuzzle;
     [Header("Animation")]
@@ -16,6 +17,14 @@ public class Door : MonoBehaviour
     private bool isOpen = false;
     private bool isUnlocked = false;
     private int currentEnergyCores = 0;
+    private bool waitingForPuzzle = false;
+    private GameObject pendingPuzzleObject = null;
+
+    private void OnDisable()
+    {
+        EventBus.OnPuzzleSolved -= OnPuzzleSolved;
+    }
+
     private void Start()
     {
         if (useAnimation)
@@ -35,29 +44,57 @@ public class Door : MonoBehaviour
     {
         if (isOpen)
             return;
+        // 1. Сначала головоломка двери (если есть и не решена)
         if (requiresPuzzle && requiredPuzzle != null)
         {
             var puzzle = requiredPuzzle.GetComponent<BasePuzzle>();
-            if (puzzle == null || !puzzle.IsSolved)
+            if (puzzle != null && !puzzle.IsSolved)
             {
-                PlayLockedSound();
+                pendingPuzzleObject = requiredPuzzle;
+                waitingForPuzzle = true;
+                EventBus.OnPuzzleSolved += OnPuzzleSolved;
+                puzzle.StartPuzzle();
                 return;
             }
         }
-        if (requiresKeyCard && !string.IsNullOrEmpty(requiredKeyCardId))
+        // 2. Ключ
+        bool hasKey = InventoryManager.Instance != null && !string.IsNullOrEmpty(requiredKeyCardId) && InventoryManager.Instance.HasKeyCard(requiredKeyCardId);
+        if (requiresKeyCard && !string.IsNullOrEmpty(requiredKeyCardId) && !hasKey)
         {
-            if (InventoryManager.Instance == null || !InventoryManager.Instance.HasKeyCard(requiredKeyCardId))
+            PlayLockedSound();
+            return;
+        }
+        // 3. Головоломка ключа (если у ключа задана и не решена)
+        GameObject keyPuzzle = hasKey && InventoryManager.Instance != null ? InventoryManager.Instance.GetPuzzleForKey(requiredKeyCardId) : null;
+        if (keyPuzzle != null)
+        {
+            var keyPuzzleComp = keyPuzzle.GetComponent<BasePuzzle>();
+            if (keyPuzzleComp != null && !keyPuzzleComp.IsSolved)
             {
-                PlayLockedSound();
+                pendingPuzzleObject = keyPuzzle;
+                waitingForPuzzle = true;
+                EventBus.OnPuzzleSolved += OnPuzzleSolved;
+                keyPuzzleComp.StartPuzzle();
                 return;
             }
         }
+        // 4. Энергоядра
         if (currentEnergyCores < requiredEnergyCores)
         {
             PlayLockedSound();
             return;
         }
         Open();
+    }
+
+    private void OnPuzzleSolved(GameObject solvedPuzzleObject)
+    {
+        if (solvedPuzzleObject != pendingPuzzleObject || !waitingForPuzzle)
+            return;
+        waitingForPuzzle = false;
+        pendingPuzzleObject = null;
+        EventBus.OnPuzzleSolved -= OnPuzzleSolved;
+        TryOpen();
     }
     public void Open()
     {

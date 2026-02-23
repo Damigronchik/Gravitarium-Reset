@@ -3,14 +3,10 @@ using UnityEngine.UI;
 using UnityEngine.InputSystem;
 public class ItemDragSystem : MonoBehaviour
 {
-    [Header("UI")]
-    [SerializeField] private Image crosshairImage;
     [Header("Settings")]
     [SerializeField] private float dragDistance = 10f;
     [SerializeField] private float maxDragDistance = 5f;
     [SerializeField] private LayerMask draggableLayer = 1;
-    [Header("Particles")]
-    [SerializeField] private ParticleSystem dragParticles;
     private Camera playerCamera;
     private DraggableItem3D currentDraggedItem = null;
     private bool isDragging = false;
@@ -27,10 +23,6 @@ public class ItemDragSystem : MonoBehaviour
         if (playerCamera == null)
         {
             playerCamera = FindObjectOfType<Camera>();
-        }
-        if (crosshairImage != null)
-        {
-            crosshairImage.gameObject.SetActive(true);
         }
     }
     private void OnEnable()
@@ -51,7 +43,6 @@ public class ItemDragSystem : MonoBehaviour
         {
             UpdateDrag();
         }
-        UpdateParticles();
     }
     private void OnMouseDown(InputAction.CallbackContext context)
     {
@@ -100,36 +91,9 @@ public class ItemDragSystem : MonoBehaviour
         }
         isDragging = false;
     }
-    private void UpdateParticles()
-    {
-        if (dragParticles == null) return;
-        bool shouldPlay = isDragging && currentDraggedItem != null;
-        if (shouldPlay)
-        {
-            if (!dragParticles.isPlaying)
-            {
-                dragParticles.Play();
-            }
-            if (currentDraggedItem != null)
-            {
-                dragParticles.transform.position = currentDraggedItem.transform.position;
-            }
-        }
-        else
-        {
-            if (dragParticles.isPlaying)
-            {
-                dragParticles.Stop();
-            }
-        }
-    }
     public void SetEnabled(bool enabled)
     {
         this.enabled = enabled;
-        if (crosshairImage != null)
-        {
-            crosshairImage.gameObject.SetActive(enabled);
-        }
         if (!enabled && isDragging)
         {
             EndDrag();

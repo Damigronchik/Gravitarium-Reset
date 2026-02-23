@@ -134,6 +134,7 @@ public class SaveManager : MonoBehaviour
             saveData.collectedEnergyCores = new List<string>(energyCores);
             var notes = InventoryManager.Instance.GetAllNotes();
             saveData.collectedNotes = new List<NoteData>(notes.Values);
+            saveData.lastDisplayedTaskText = InventoryManager.Instance.GetLastDisplayedTaskText() ?? "";
         }
         saveData.currentLevel = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name;
         var puzzleManager = FindObjectOfType<PuzzleManager>();
@@ -240,11 +241,16 @@ public class SaveManager : MonoBehaviour
                     InventoryManager.Instance.AddNote(
                         noteData.noteId,
                         noteData.noteTitle,
-                        noteData.noteText
+                        noteData.noteText,
+                        noteData.noteTask ?? ""
                     );
                 }
             }
+            InventoryManager.Instance.SetLastDisplayedTaskText(saveData.lastDisplayedTaskText ?? "");
         }
+        var journalUI = FindObjectOfType<JournalUI>(true);
+        if (journalUI != null)
+            journalUI.ApplySavedTaskText();
         // Скрыть энергоядра, которые уже собраны
         StartCoroutine(HideCollectedEnergyCoresAfterDelay(saveData));
         StartCoroutine(RestorePuzzlesAfterDelay(saveData));

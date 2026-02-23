@@ -26,7 +26,7 @@ public class DraggableItem3D : MonoBehaviour
         if (!isDragging) return;
         transform.position = targetPosition;
     }
-    public void EndDrag()
+    public virtual void EndDrag()
     {
         if (!isDragging) return;
         isDragging = false;

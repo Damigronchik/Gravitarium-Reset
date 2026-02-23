@@ -4,6 +4,8 @@ public class KeyCard : MonoBehaviour
     [Header("Settings")]
     [SerializeField] private string keyCardId = "keycard_001";
     [SerializeField] private bool isCollected = false;
+    [Tooltip("Если задана: при открытии двери этим ключом сначала нужно решить эту головоломку (drag&drop).")]
+    [SerializeField] private GameObject puzzleForThisKey;
     [Header("Visual Effects (Deprecated)")]
     [Tooltip("Используется ObjectPoolManager для эффектов. Оставьте пустым.")]
     [SerializeField] private ParticleSystem collectEffect;
@@ -57,7 +59,7 @@ public class KeyCard : MonoBehaviour
         }
         if (InventoryManager.Instance != null)
         {
-            InventoryManager.Instance.AddKeyCard(keyCardId);
+            InventoryManager.Instance.AddKeyCard(keyCardId, puzzleForThisKey);
         }
         gameObject.SetActive(false);
         EventBus.InvokeKeyCardCollected(gameObject, keyCardId);

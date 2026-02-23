@@ -7,17 +7,20 @@ public class NoteData
     public string noteId;
     public string noteTitle;
     public string noteText;
+    public string noteTask;
     public NoteData()
     {
         noteId = "";
         noteTitle = "";
         noteText = "";
+        noteTask = "";
     }
-    public NoteData(string id, string title, string text)
+    public NoteData(string id, string title, string text, string task = "")
     {
         noteId = id;
         noteTitle = title;
         noteText = text;
+        noteTask = task ?? "";
     }
 }
 [Serializable]
@@ -38,6 +41,7 @@ public class SaveData
     public string currentLevel;
     public string saveDate;
     public float playTime;
+    public string lastDisplayedTaskText = "";
     public SaveData()
     {
         playerPosition = Vector3.zero;

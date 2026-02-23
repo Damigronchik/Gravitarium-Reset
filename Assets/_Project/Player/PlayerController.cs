@@ -1,7 +1,6 @@
 using UnityEngine;
 using UnityEngine.InputSystem;
-using System.Collections;
-[RequireComponent(typeof(Rigidbody))]
+
 [RequireComponent(typeof(GravitySystem))]
 public class PlayerController : MonoBehaviour
 {
@@ -15,13 +14,12 @@ public class PlayerController : MonoBehaviour
     [SerializeField] private float mouseSensitivity = 2f;
     [SerializeField] private float verticalLookLimit = 80f;
     [SerializeField] private Transform cameraTransform;
-    [Header("Gravity Flip Settings")]
-    [SerializeField] private float gravityFlipRotationSpeed = 180f;
     [Header("Item Drag System")]
     [SerializeField] private ItemDragSystem itemDragSystem;
     [Header("Interaction Settings")]
     [SerializeField] private float maxInteractionDistance = 5f;
-    private Rigidbody rb;
+	[SerializeField] private Rigidbody _rigidbody;
+	[SerializeField] private Help help;
     private GravitySystem gravitySystem;
     private InputSystem inputActions;
     private Vector2 moveInput;
@@ -30,23 +28,22 @@ public class PlayerController : MonoBehaviour
     private bool isSprinting;
     private bool isGrounded;
     private Vector3 moveDirection;
-    private bool isFlippingGravity = false;
     private float currentRotationY = 0f;
     private bool inputEnabled = true;
     public bool IsGrounded => isGrounded;
-    public Vector3 Velocity => rb.linearVelocity;
+    public Vector3 Velocity => _rigidbody.linearVelocity;
     public bool InputEnabled 
     { 
         get => inputEnabled; 
         set => inputEnabled = value; 
     }
+
     private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
         gravitySystem = GetComponent<GravitySystem>();
         inputActions = new InputSystem();
-        rb.freezeRotation = true;
-        rb.interpolation = RigidbodyInterpolation.Interpolate;
+        _rigidbody.freezeRotation = true;
+        _rigidbody.interpolation = RigidbodyInterpolation.Interpolate;
         currentRotationY = transform.eulerAngles.y;
         if (cameraTransform == null)
         {
@@ -80,8 +77,8 @@ public class PlayerController : MonoBehaviour
         inputActions.Player.Sprint.performed += OnSprint;
         inputActions.Player.Sprint.canceled += OnSprint;
         inputActions.Player.FlipGravity.performed += OnFlipGravity;
+        inputActions.Player.Help.performed += OnUseHeap;
         inputActions.Player.Interact.performed += OnInteract;
-        EventBus.OnGravityFlipped += OnGravityFlipped;
         Cursor.lockState = CursorLockMode.Locked;
         Cursor.visible = false;
     }
@@ -94,8 +91,8 @@ public class PlayerController : MonoBehaviour
         inputActions.Player.Sprint.performed -= OnSprint;
         inputActions.Player.Sprint.canceled -= OnSprint;
         inputActions.Player.FlipGravity.performed -= OnFlipGravity;
+        inputActions.Player.Help.performed -= OnUseHeap;
         inputActions.Player.Interact.performed -= OnInteract;
-        EventBus.OnGravityFlipped -= OnGravityFlipped;
         inputActions.Player.Disable();
         Cursor.lockState = CursorLockMode.None;
         Cursor.visible = true;
@@ -115,12 +112,9 @@ public class PlayerController : MonoBehaviour
     private void FixedUpdate()
     {
         ApplyMovement();
-        if (!isFlippingGravity)
-        {
-            Quaternion targetRotation = Quaternion.Euler(0, currentRotationY, 0);
-            rb.MoveRotation(targetRotation);
-        }
-	}
+        Quaternion targetRotation = Quaternion.Euler(0, currentRotationY, 0);
+        _rigidbody.MoveRotation(targetRotation);
+    }
     private void CheckGrounded()
     {
         Vector3 checkDirection = gravitySystem.IsGravityFlipped ? Vector3.up : Vector3.down;
@@ -128,21 +122,23 @@ public class PlayerController : MonoBehaviour
     }
     private void HandleMouseLook()
     {
-        if (isFlippingGravity || 
+        if (gravitySystem.IsFlipping ||
             Time.timeScale == 0f || 
             (GameManager.Instance != null && GameManager.Instance.CurrentState == GameManager.GameState.Paused) ||
             lookInput.magnitude < 0.01f) 
         {
             return;
         }
-        float mouseX = lookInput.x * mouseSensitivity;
+        bool flipped = gravitySystem.IsGravityFlipped;
+        float mouseX = lookInput.x * mouseSensitivity * (flipped ? -1f : 1f);
+        float mouseY = lookInput.y * mouseSensitivity;
         currentRotationY += mouseX;
         if (cameraTransform != null)
         {
-            float mouseY = lookInput.y * mouseSensitivity;
             verticalRotation -= mouseY;
             verticalRotation = Mathf.Clamp(verticalRotation, -verticalLookLimit, verticalLookLimit);
-            cameraTransform.localRotation = Quaternion.Euler(verticalRotation, 0f, 0f);
+            float pitch = flipped ? -verticalRotation : verticalRotation;
+            cameraTransform.localRotation = Quaternion.Euler(pitch, 0f, 0f);
         }
     }
     private void HandleMovement()
@@ -152,19 +148,21 @@ public class PlayerController : MonoBehaviour
             moveDirection = Vector3.zero;
             return;
         }
+        float invertX = gravitySystem.IsGravityFlipped ? -1f : 1f;
+        Vector2 effectiveInput = new Vector2(moveInput.x * invertX, moveInput.y);
         Vector3 forward = transform.forward;
         Vector3 right = transform.right;
         forward.y = 0f;
         right.y = 0f;
         forward.Normalize();
         right.Normalize();
-        moveDirection = (forward * moveInput.y + right * moveInput.x).normalized;
+        moveDirection = (forward * effectiveInput.y + right * effectiveInput.x).normalized;
         EventBus.InvokePlayerMoved(transform.position);
     }
     private void ApplyMovement()
     {
         float speed = isSprinting ? moveSpeed * sprintMultiplier : moveSpeed;
-        Vector3 currentVelocity = rb.linearVelocity;
+        Vector3 currentVelocity = _rigidbody.linearVelocity;
         Vector3 targetHorizontalVelocity = Vector3.zero;
         if (moveDirection.magnitude > 0.1f)
         {
@@ -182,7 +180,7 @@ public class PlayerController : MonoBehaviour
             newVelocity.x = Mathf.Lerp(currentVelocity.x, targetHorizontalVelocity.x, controlMultiplier);
             newVelocity.z = Mathf.Lerp(currentVelocity.z, targetHorizontalVelocity.z, controlMultiplier);
         }
-        rb.linearVelocity = newVelocity;
+        _rigidbody.linearVelocity = newVelocity;
     }
     private void OnMove(InputAction.CallbackContext context)
     {
@@ -198,34 +196,13 @@ public class PlayerController : MonoBehaviour
     }
     private void OnFlipGravity(InputAction.CallbackContext context)
     {
-        if (!isFlippingGravity)
-            gravitySystem.FlipGravity();
+        gravitySystem.FlipGravity();
     }
-    private void OnGravityFlipped(Vector3 newGravity)
-    {
-        StartCoroutine(SmoothGravityFlip());
-    }
-    private IEnumerator SmoothGravityFlip()
-    {
-        isFlippingGravity = true;
-        Quaternion startRotation = rb.rotation;
-        float rotationAmount = 180f;
-        Quaternion targetRotation = startRotation * Quaternion.Euler(0, 0, rotationAmount);
-        float elapsedTime = 0f;
-        float rotationDuration = rotationAmount / gravityFlipRotationSpeed;
-        while (elapsedTime < rotationDuration)
-        {
-            elapsedTime += Time.deltaTime;
-            float t = Mathf.Clamp01(elapsedTime / rotationDuration);
-            t = t * t * (3f - 2f * t);
-            Quaternion currentRotation = Quaternion.Slerp(startRotation, targetRotation, t);
-            rb.MoveRotation(currentRotation);
-            yield return null;
-        }
-        rb.MoveRotation(targetRotation);
-        isFlippingGravity = false;
-    }
-    private void CheckInteractiveObjects()
+	private void OnUseHeap(InputAction.CallbackContext context)
+	{
+		help.ToggleHelp();
+	}
+	private void CheckInteractiveObjects()
     {
         if (cameraTransform == null) return;
         RaycastHit hit;

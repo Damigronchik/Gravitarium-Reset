@@ -11,12 +11,33 @@ public class JournalUI : MonoBehaviour
     [SerializeField] private GameObject noteEntryPrefab;
     [SerializeField] private TextMeshProUGUI noteTitleText;
     [SerializeField] private TextMeshProUGUI noteContentText;
+    [Tooltip("Поле «Задание»: текст из записки. Если пусто — ищется объект с тегом TaskText и компонент TextMeshProUGUI.")]
+    [SerializeField] private TextMeshProUGUI noteTaskText;
     [SerializeField] private Button closeButton;
     private Dictionary<string, GameObject> noteEntryButtons = new Dictionary<string, GameObject>();
     private InputSystem inputActions;
     private void Awake()
     {
         inputActions = new InputSystem();
+        InitTaskTextIfNeeded();
+    }
+    private void InitTaskTextIfNeeded()
+    {
+        if (noteTaskText != null) return;
+        try
+        {
+            GameObject go = GameObject.FindGameObjectWithTag("TaskText");
+            if (go != null)
+            {
+                noteTaskText = go.GetComponent<TextMeshProUGUI>();
+                if (noteTaskText == null)
+                    noteTaskText = go.GetComponentInChildren<TextMeshProUGUI>(true);
+            }
+        }
+        catch (System.Exception)
+        {
+            Debug.LogWarning("JournalUI: Тег \"TaskText\" не найден в Tag Manager. Добавьте тег и назначьте его объекту с TextMeshProUGUI для поля «Задание».");
+        }
     }
     private void Start()
     {
@@ -69,6 +90,22 @@ public class JournalUI : MonoBehaviour
     private void OnNoteCollected(GameObject note, string noteId)
     {
         RefreshJournal();
+		if (noteTaskText == null) 
+		{
+			GameObject go = GameObject.FindGameObjectWithTag("TaskText");
+			if (go != null)
+			{
+				noteTaskText = go.GetComponent<TextMeshProUGUI>();
+				if (noteTaskText == null)
+					noteTaskText = go.GetComponentInChildren<TextMeshProUGUI>(true);
+			}
+		}
+        if (noteTaskText != null && InventoryManager.Instance != null && InventoryManager.Instance.GetAllNotes().TryGetValue(noteId, out NoteData data) && data != null)
+        {
+            string task = data.noteTask ?? "";
+            noteTaskText.text = task;
+            InventoryManager.Instance.SetLastDisplayedTaskText(task);
+        }
     }
     private void RefreshJournal()
     {
@@ -180,15 +217,26 @@ public class JournalUI : MonoBehaviour
         Debug.Log($"JournalUI: Successfully added note {noteData.noteId} to journal. Entry active: {entry.activeSelf}, Entry visible in hierarchy: {entry.activeInHierarchy}");
     }
     private void SelectNote(NoteData noteData)
-        {
+    {
         if (noteTitleText != null)
-            {
             noteTitleText.text = noteData.noteTitle;
-            }
         if (noteContentText != null)
-        {
             noteContentText.text = noteData.noteText;
+        if (noteTaskText != null)
+        {
+            string task = noteData.noteTask ?? "";
+            noteTaskText.text = task;
+            if (InventoryManager.Instance != null)
+                InventoryManager.Instance.SetLastDisplayedTaskText(task);
         }
+    }
+
+    /// <summary>Применяет сохранённый текст задания (вызывается при загрузке сохранения).</summary>
+    public void ApplySavedTaskText()
+    {
+        InitTaskTextIfNeeded();
+        if (noteTaskText != null && InventoryManager.Instance != null)
+            noteTaskText.text = InventoryManager.Instance.GetLastDisplayedTaskText();
     }
     public void ToggleJournal()
     {

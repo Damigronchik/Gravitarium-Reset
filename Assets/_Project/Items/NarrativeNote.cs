@@ -5,6 +5,8 @@ public class NarrativeNote : MonoBehaviour
     [SerializeField] private string noteId = "note_001";
     [SerializeField] private string noteTitle = "Записка";
     [SerializeField] [TextArea(5, 10)] private string noteText = "Текст записки...";
+    [Tooltip("Задание: при сборе записки отображается в отдельном поле журнала (TMPro).")]
+    [SerializeField] [TextArea(2, 4)] private string noteTask = "";
     [Header("Visual")]
     [SerializeField] private GameObject visualObject;
     [SerializeField] private float rotationSpeed = 45f;
@@ -60,7 +62,7 @@ public class NarrativeNote : MonoBehaviour
         }
         if (InventoryManager.Instance != null)
         {
-            InventoryManager.Instance.AddNote(noteId, noteTitle, noteText);
+            InventoryManager.Instance.AddNote(noteId, noteTitle, noteText, noteTask);
         }
         else
         {
@@ -79,5 +81,6 @@ public class NarrativeNote : MonoBehaviour
     public string NoteId => noteId;
     public string NoteTitle => noteTitle;
     public string NoteText => noteText;
+    public string NoteTask => noteTask;
     public bool IsCollected => isCollected;
 }
